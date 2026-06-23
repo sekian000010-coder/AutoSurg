@@ -1,6 +1,5 @@
--- Auto Surgery Logic (Growlauncher) – Tanpa GUI (Fix Blokir + Auto Wrench Surg‑E + OnTextOverlay)
--- Hanya logika dan fungsi, siap di‑inject oleh loader.
--- Loader dapat mengatur _G.surgStart, _G.surgMode, _G.surgTrain, _G.surgLegal
+-- Auto Surgery Logic (Growlauncher) – Siap untuk Conqueror Hub
+-- Dilengkapi UI, penyimpanan state, dan fungsi unload.
 
 -- State (dapat diubah oleh loader)
 _G.surgLegal = _G.surgLegal or false
@@ -103,14 +102,12 @@ addHook(function(var)
 
         if v2:find("Okay!") or v2:find("Perform Surgery") then
             if not _G.surgStart then
-                -- **PENTING: blokir dialog jika surgery dimatikan**
                 return true
             end
 
             surgery = nil
             totalTools = 0
 
-            -- Hanya cek tools untuk Surg‑E
             if _G.surgMode then
                 local haveTools = true
                 for _, id in pairs({1258, 1260, 1262, 1266, 1268, 1270, 4308, 4310, 4312, 4314, 4316, 4318}) do
@@ -168,5 +165,140 @@ addHook(function(var)
     return false
 end, "onVariant")
 
+-- ===== UI MODULE =====
+local ui = UserInterface.new("Auto Surgery", "Medical")
+
+ui:addLabelApp("Auto Surgery Pro", "Medical")
+ui:addTooltip(
+    "Info",
+    "Surg-E / Train-E Controller",
+    "Medical",
+    false
+)
+
+ui:addDivider()
+
+local cfg = ui:addExpandableToggle(
+    "Configuration",
+    true,
+    "surg_cfg",
+    false,
+    true
+)
+
+ui:addChildToggle(
+    cfg.list_child,
+    "Surg-E Mode",
+    _G.surgMode or false,
+    "surg_mode",
+    true
+)
+
+ui:addChildToggle(
+    cfg.list_child,
+    "Train-E Mode",
+    _G.surgTrain or false,
+    "surg_train",
+    true
+)
+
+ui:addChildToggle(
+    cfg.list_child,
+    "Auto Legal Brief",
+    _G.surgLegal or false,
+    "surg_legal",
+    true
+)
+
+ui:addDivider()
+
+ui:addLabelApp("Control Panel", "PlayArrow")
+
+ui:addToggleButton(
+    "Start Surgery",
+    _G.surgStart or false,
+    "surg_start_toggle"
+)
+
+ui:addButton(
+    "Stop Surgery",
+    "surg_stop"
+)
+
+ui:addDivider()
+
+ui:addLabelApp(
+    "Made for Conqueror Hub",
+    "Info"
+)
+
+-- ===== SIMPAN UI & FUNGSI UNLOAD =====
+-- Ini adalah kunci agar Loader bisa mengontrol script ini
+_G.surgUI = ui:generateJSON()
+
+function _G.unloadSurgery()
+    _G.surgStart = false
+    _G.blockDialog = false
+    LogToConsole("[Surgery] Unloaded")
+end
+
+-- ===== HOOK UNTUK UI =====
+addHook(function(type,name,value)
+
+    if name == "surg_mode" then
+        _G.surgMode = value
+        if value then
+            _G.surgTrain = false
+            pcall(editValue, "surg_train", false)
+        end
+        growtopia.notify("Surg-E Mode " .. (value and "ON" or "OFF"))
+
+    elseif name == "surg_train" then
+        _G.surgTrain = value
+        if value then
+            _G.surgMode = false
+            pcall(editValue, "surg_mode", false)
+        end
+        growtopia.notify("Train-E Mode " .. (value and "ON" or "OFF"))
+
+    elseif name == "surg_legal" then
+        _G.surgLegal = value
+        growtopia.notify("Legal Brief " .. (value and "ON" or "OFF"))
+
+    elseif name == "surg_start_toggle" then
+        _G.surgStart = value
+        if value then
+            growtopia.notify("Auto Surgery Started")
+        else
+            growtopia.notify("Auto Surgery Paused")
+        end
+
+    elseif name == "surg_stop" then
+        _G.surgStart = false
+        pcall(editValue, "surg_start_toggle", false)
+        growtopia.notify("Auto Surgery Stopped")
+    end
+
+end,"onValue")
+
+-- ===== MASUKKAN UI KE CONQUEROR HUB =====
+addIntoModule(ui:generateJSON(), "CONQUEROR HUB")
+
 console("Auto Surgery logic siap")
+-- ... (semua kode surgery, UI, dll. tetap sama) ...
+
+-- ========== SIMPAN UI UNTUK LOADER ==========
+_G.surgUI = ui:generateJSON()
+
+-- ========== FUNGSI UNLOAD ==========
+function _G.unloadSurgery()
+    _G.surgStart = false
+    -- Hapus hook jika ada label
+    -- removeHook("surg_onVariant")
+    LogToConsole("[Surgery] Unloaded")
+end
+
+-- ========== TETAP MASUK KE CONQUEROR HUB ==========
+addIntoModule(ui:generateJSON(), "CONQUEROR HUB")
+
 applyHook()
