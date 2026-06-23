@@ -4,7 +4,7 @@
 
 -- State (dapat diubah oleh loader)
 _G.surgLegal = _G.surgLegal or false
-_G.surgMode  = _G.surgMode or true
+_G.surgMode  = _G.surgMode or false
 _G.surgTrain = _G.surgTrain or false
 _G.surgStart = _G.surgStart or false
 _G.blockDialog = _G.surgStart   -- awalnya mengikuti START, false jika START mati
