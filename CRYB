@@ -1,12 +1,11 @@
--- Auto Surgery Logic (Growlauncher) – Siap untuk Conqueror Hub
--- Dilengkapi UI, penyimpanan state, dan fungsi unload.
+-- Auto Surgery Logic (Growlauncher) – Lengkap dengan UI, Siap untuk Conqueror Hub
 
 -- State (dapat diubah oleh loader)
 _G.surgLegal = _G.surgLegal or false
 _G.surgMode  = _G.surgMode or false
 _G.surgTrain = _G.surgTrain or false
 _G.surgStart = _G.surgStart or false
-_G.blockDialog = _G.surgStart   -- awalnya mengikuti START, false jika START mati
+_G.blockDialog = _G.surgStart
 
 local surgery = nil
 local totalTools = 0
@@ -68,66 +67,43 @@ addHook(function(var)
     local v2 = var.v2 or ""
     if type(v2) ~= "string" then v2 = "" end
 
-    -- Sinkronkan blockDialog dengan START setiap kali hook dipanggil
     _G.blockDialog = _G.surgStart
 
-    -- Block dialog
     if _G.blockDialog and v1 == "OnDialogRequest" then
         if v2:find("surgery") or v2:find("|4296|") or v2:find("|8558|") then
         else return true end
     end
 
-    -- Talk bubble
     if v1 == "OnTalkBubble" and v2:find("with your malpractice issues.") then
         if _G.surgLegal then place(math.floor(getLocal().posX/32), math.floor(getLocal().posY/32), 3172) end
     end
 
-    -- Auto find next station setelah surgery selesai (Console + Overlay)
     if v1 == "OnConsoleMessage" or v1 == "OnTextOverlay" then
         if v2:find("YOU SAVED YOUR PATIENT") then
-            if _G.surgMode then
-                sleep(1000)
-                scanNextStation(4296, "Surg‑E")
-            end
+            if _G.surgMode then sleep(1000); scanNextStation(4296, "Surg-E") end
         elseif v2:find("YOU HEALED YOUR PATIENT") or v2:find("The patient is fully healed") then
-            if _G.surgTrain then
-                sleep(1000)
-                scanNextStation(8558, "Train‑E")
-            end
+            if _G.surgTrain then sleep(1000); scanNextStation(8558, "Train-E") end
         end
     end
 
-    -- Auto Surgery
     if v1 == "OnDialogRequest" and (v2:find("end_dialog|surgery") or v2:find("|4296|") or v2:find("|8558|")) then
-
         if v2:find("Okay!") or v2:find("Perform Surgery") then
-            if not _G.surgStart then
-                return true
-            end
-
-            surgery = nil
-            totalTools = 0
-
+            if not _G.surgStart then return true end
+            surgery = nil; totalTools = 0
             if _G.surgMode then
                 local haveTools = true
                 for _, id in pairs({1258, 1260, 1262, 1266, 1268, 1270, 4308, 4310, 4312, 4314, 4316, 4318}) do
                     if inv(id) < 15 then haveTools = false break end
                 end
-                if not haveTools then
-                    console("Tools < 15")
-                    return true
-                end
+                if not haveTools then console("Tools < 15"); return true end
             end
-
             local tx = v2:match("embed_data|tilex|(%d+)")
             local ty = v2:match("embed_data|tiley|(%d+)")
-            if tx and ty then
-                sendPacket(2, "action|dialog_return\ndialog_name|surge\ntilex|"..tx.."|\ntiley|"..ty.."|")
-            end
+            if tx and ty then sendPacket(2, "action|dialog_return\ndialog_name|surge\ntilex|"..tx.."|\ntiley|"..ty.."|") end
             return true
         end
 
-        -- Prioritas tools
+        -- Prioritas tools (sama seperti sebelumnya, tidak berubah)
         if v2:find("You can't see what you are doing!") then Use("Sponge") return true end
         if Decolorize(v2):find("Status: Heart stopped!") then Use("Defibrillator") return true end
         if v2:find("The patient wakes up!") or v2:find("The patient screams and flails!") then Use("Anesthetic") return true end
@@ -137,13 +113,10 @@ addHook(function(var)
             if Decolorize(v2):find("Status: Awake") or Decolorize(v2):find("Status: Coming to") then Use("Anesthetic") return true end
             if (Decolorize(v2):find("blood slowly") or Decolorize(v2):find("blood!") or Decolorize(v2):find("blood very quickly!")) and not Decolorize(v2):find("Incisions: 0") then Use("Clamp") return true end
             if Decolorize(v2):find("fever is") or not v2:find("Temp: `2") then
-                if v2:find("tool1266") then Use("Antibiotics") return true end
-                if v2:find("tool4318") then Use("Lab Kit") return true end
+                if v2:find("tool1266") then Use("Antibiotics") return true elseif v2:find("tool4318") then Use("Lab Kit") return true end
             end
             if not Decolorize(v2):find("Pulse: Strong") and not Decolorize(v2):find("Pulse: Steady") then Use("Transfusion") return true end
-            if Decolorize(v2):find("%d+ shattered") then
-                if v2:find("tool4308") then Use("Pins") return true else Use("Scalpel") return true end
-            end
+            if Decolorize(v2):find("%d+ shattered") then if v2:find("tool4308") then Use("Pins") return true else Use("Scalpel") return true end end
             if v2:find("Incisions: `2") then surgery = false Use("Stitches") return true end
             Use("Scalpel") return true
         end
@@ -153,87 +126,35 @@ addHook(function(var)
         end
         if Decolorize(v2):find("blood") and Decolorize(v2):find("Incisions: 0") then Use("Stitches") return true end
         if Decolorize(v2):find("fever") or not v2:find("Temp: `2") then
-            if v2:find("tool1266") then Use("Antibiotics") return true end
-            if v2:find("tool4318") then Use("Lab Kit") return true end
+            if v2:find("tool1266") then Use("Antibiotics") return true elseif v2:find("tool4318") then Use("Lab Kit") return true end
         end
         if Decolorize(v2):find("%d+ broken") then Use("Splint") return true end
         if v2:find("not been diagnosed") and v2:find("tool4316") then Use("Ultrasound") return true end
         if v2:find("tool1296") then Use("Fix It!") surgery = nil return true end
         if Decolorize(v2):find("Status: Awake") or Decolorize(v2):find("Status: Coming to") then surgery = true Use("Anesthetic") return true end
     end
-
     return false
 end, "onVariant")
 
 -- ===== UI MODULE =====
 local ui = UserInterface.new("Auto Surgery", "Medical")
-
 ui:addLabelApp("Auto Surgery Pro", "Medical")
-ui:addTooltip(
-    "Info",
-    "Surg-E / Train-E Controller",
-    "Medical",
-    false
-)
-
+ui:addTooltip("Info", "Surg-E / Train-E Controller", "Medical", false)
 ui:addDivider()
 
-local cfg = ui:addExpandableToggle(
-    "Configuration",
-    true,
-    "surg_cfg",
-    false,
-    true
-)
-
-ui:addChildToggle(
-    cfg.list_child,
-    "Surg-E Mode",
-    _G.surgMode or false,
-    "surg_mode",
-    true
-)
-
-ui:addChildToggle(
-    cfg.list_child,
-    "Train-E Mode",
-    _G.surgTrain or false,
-    "surg_train",
-    true
-)
-
-ui:addChildToggle(
-    cfg.list_child,
-    "Auto Legal Brief",
-    _G.surgLegal or false,
-    "surg_legal",
-    true
-)
+local cfg = ui:addExpandableToggle("Configuration", true, "surg_cfg", false, true)
+ui:addChildToggle(cfg.list_child, "Surg-E Mode", _G.surgMode or false, "surg_mode", true)
+ui:addChildToggle(cfg.list_child, "Train-E Mode", _G.surgTrain or false, "surg_train", true)
+ui:addChildToggle(cfg.list_child, "Auto Legal Brief", _G.surgLegal or false, "surg_legal", true)
 
 ui:addDivider()
-
 ui:addLabelApp("Control Panel", "PlayArrow")
-
-ui:addToggleButton(
-    "Start Surgery",
-    _G.surgStart or false,
-    "surg_start_toggle"
-)
-
-ui:addButton(
-    "Stop Surgery",
-    "surg_stop"
-)
-
+ui:addToggleButton("Start Surgery", _G.surgStart or false, "surg_start_toggle")
+ui:addButton("Stop Surgery", "surg_stop")
 ui:addDivider()
-
-ui:addLabelApp(
-    "Made for Conqueror Hub",
-    "Info"
-)
+ui:addLabelApp("Made for Conqueror Hub", "Info")
 
 -- ===== SIMPAN UI & FUNGSI UNLOAD =====
--- Ini adalah kunci agar Loader bisa mengontrol script ini
 _G.surgUI = ui:generateJSON()
 
 function _G.unloadSurgery()
@@ -242,63 +163,26 @@ function _G.unloadSurgery()
     LogToConsole("[Surgery] Unloaded")
 end
 
--- ===== HOOK UNTUK UI =====
-addHook(function(type,name,value)
-
+-- ===== HANDLER TOMBOL UI =====
+addHook(function(type, name, value)
     if name == "surg_mode" then
         _G.surgMode = value
-        if value then
-            _G.surgTrain = false
-            pcall(editValue, "surg_train", false)
-        end
-        growtopia.notify("Surg-E Mode " .. (value and "ON" or "OFF"))
-
+        if value then _G.surgTrain = false; pcall(editValue, "surg_train", false) end
     elseif name == "surg_train" then
         _G.surgTrain = value
-        if value then
-            _G.surgMode = false
-            pcall(editValue, "surg_mode", false)
-        end
-        growtopia.notify("Train-E Mode " .. (value and "ON" or "OFF"))
-
+        if value then _G.surgMode = false; pcall(editValue, "surg_mode", false) end
     elseif name == "surg_legal" then
         _G.surgLegal = value
-        growtopia.notify("Legal Brief " .. (value and "ON" or "OFF"))
-
     elseif name == "surg_start_toggle" then
         _G.surgStart = value
-        if value then
-            growtopia.notify("Auto Surgery Started")
-        else
-            growtopia.notify("Auto Surgery Paused")
-        end
-
     elseif name == "surg_stop" then
         _G.surgStart = false
         pcall(editValue, "surg_start_toggle", false)
-        growtopia.notify("Auto Surgery Stopped")
     end
-
-end,"onValue")
+end, "onValue")
 
 -- ===== MASUKKAN UI KE CONQUEROR HUB =====
 addIntoModule(ui:generateJSON(), "CONQUEROR HUB")
 
 console("Auto Surgery logic siap")
--- ... (semua kode surgery, UI, dll. tetap sama) ...
-
--- ========== SIMPAN UI UNTUK LOADER ==========
-_G.surgUI = ui:generateJSON()
-
--- ========== FUNGSI UNLOAD ==========
-function _G.unloadSurgery()
-    _G.surgStart = false
-    -- Hapus hook jika ada label
-    -- removeHook("surg_onVariant")
-    LogToConsole("[Surgery] Unloaded")
-end
-
--- ========== TETAP MASUK KE CONQUEROR HUB ==========
-addIntoModule(ui:generateJSON(), "CONQUEROR HUB")
-
 applyHook()
