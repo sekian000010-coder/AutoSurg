@@ -1,14 +1,14 @@
--- Auto Surgery Logic (Growlauncher) – Tanpa GUI
+-- Auto Surgery Logic (Growlauncher) – Tanpa GUI (Fix Blokir)
 -- Hanya logika dan fungsi, siap di‑inject oleh loader.
 -- Loader dapat mengatur _G.surgStart, _G.surgMode, _G.surgTrain, _G.surgLegal
 
 _G.blockDialog = true
 
 -- State (dapat diubah oleh loader)
-_G.surgLegal = _G.surgLegal or false   -- Auto Legal Brief
-_G.surgMode  = _G.surgMode or true     -- true = Surg‑E, false = Train‑E
-_G.surgTrain = _G.surgTrain or false   -- mode Train‑E aktif?
-_G.surgStart = _G.surgStart or false   -- Auto‑start surgery
+_G.surgLegal = _G.surgLegal or false
+_G.surgMode  = _G.surgMode or true
+_G.surgTrain = _G.surgTrain or false
+_G.surgStart = _G.surgStart or false
 
 local surgery = nil
 local totalTools = 0
@@ -92,7 +92,10 @@ addHook(function(var)
     if v1 == "OnDialogRequest" and (v2:find("end_dialog|surgery") or v2:find("|4296|") or v2:find("|8558|")) then
 
         if v2:find("Okay!") or v2:find("Perform Surgery") then
-            if not _G.surgStart then return false end
+            if not _G.surgStart then
+                -- **PENTING: blokir dialog jika surgery dimatikan**
+                return true
+            end
 
             surgery = nil
             totalTools = 0
@@ -155,5 +158,5 @@ addHook(function(var)
     return false
 end, "onVariant")
 
-console("Auto Surgery logic siap")
+console("Auto Surgery siap")
 applyHook()
