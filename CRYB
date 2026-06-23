@@ -1,30 +1,34 @@
--- Auto Surgery (Growlauncher) - Final Fixed
--- Logic by Conqueror
+-- Auto Surgery Logic (Growlauncher) – Tanpa GUI
+-- Hanya logika dan fungsi, siap di‑inject oleh loader.
+-- Loader dapat mengatur _G.surgStart, _G.surgMode, _G.surgTrain, _G.surgLegal
 
 _G.blockDialog = true
 
-local Aleg = false
+-- State (dapat diubah oleh loader)
+_G.surgLegal = _G.surgLegal or false   -- Auto Legal Brief
+_G.surgMode  = _G.surgMode or true     -- true = Surg‑E, false = Train‑E
+_G.surgTrain = _G.surgTrain or false   -- mode Train‑E aktif?
+_G.surgStart = _G.surgStart or false   -- Auto‑start surgery
+
 local surgery = nil
 local totalTools = 0
-local modeSurg = true
-local modeTrain = false
-local startMode = false
 
-function console(str)
-    LogToConsole("[Conqueror] "..str)
+-- Fungsi bantu
+local function console(str)
+    LogToConsole("[Surg] "..str)
 end
 
-function place(x, y, id)
+local function place(x, y, id)
     local pkt = { type = 3, value = id, px = x, py = y, x = x * 32, y = y * 32 }
     sendPacketRaw(false, pkt)
 end
 
-function inv(id)
-    for _, item in pairs(getInventory()) do 
-        if item.id == id then return item.amount end 
-    end 
-    return 0 
-end 
+local function inv(id)
+    for _, item in pairs(getInventory()) do
+        if item.id == id then return item.amount end
+    end
+    return 0
+end
 
 local function Decolorize(text)
     if type(text) ~= "string" then return "" end
@@ -46,8 +50,8 @@ local function Use(toolName)
     end
 end
 
-function scanNextTrainE()
-    local px, py = getLocal().pos.x // 32, getLocal().pos.y // 32
+local function scanNextTrainE()
+    local px, py = math.floor(getLocal().posX / 32), math.floor(getLocal().posY / 32)
     for y = math.max(0, py - 5), math.min(53, py + 5) do
         for x = math.max(0, px - 5), math.min(99, px + 5) do
             if getTile(x, y).fg == 8558 then
@@ -59,6 +63,7 @@ function scanNextTrainE()
     return false
 end
 
+-- ===== HOOK UTAMA =====
 addHook(function(var)
     local v1 = var.v1 or ""
     local v2 = var.v2 or ""
@@ -72,36 +77,38 @@ addHook(function(var)
 
     -- Talk bubble
     if v1 == "OnTalkBubble" and v2:find("with your malpractice issues.") then
-        if Aleg then place(getLocal().pos.x//32, getLocal().pos.y//32, 3172) end
+        if _G.surgLegal then place(math.floor(getLocal().posX/32), math.floor(getLocal().posY/32), 3172) end
     end
 
-    -- Auto find next Train-E setelah surgery selesai
+    -- Auto find next Train‑E setelah surgery selesai
     if v1 == "OnConsoleMessage" then
-        if modeTrain and (v2:find("YOU HEALED YOUR PATIENT") or v2:find("The patient is fully healed")) then
+        if _G.surgTrain and (v2:find("YOU HEALED YOUR PATIENT") or v2:find("The patient is fully healed")) then
             sleep(1000)
-            if scanNextTrainE() then console("Auto wrench next Train-E") end
+            if scanNextTrainE() then console("Auto wrench next Train‑E") end
         end
     end
 
     -- Auto Surgery
     if v1 == "OnDialogRequest" and (v2:find("end_dialog|surgery") or v2:find("|4296|") or v2:find("|8558|")) then
-        
+
         if v2:find("Okay!") or v2:find("Perform Surgery") then
-            if not startMode then return false end
-            
-            surgery = nil; totalTools = 0
-            
-            if modeSurg then
+            if not _G.surgStart then return false end
+
+            surgery = nil
+            totalTools = 0
+
+            -- Hanya cek tools untuk Surg‑E
+            if _G.surgMode then
                 local haveTools = true
                 for _, id in pairs({1258, 1260, 1262, 1266, 1268, 1270, 4308, 4310, 4312, 4314, 4316, 4318}) do
                     if inv(id) < 15 then haveTools = false break end
                 end
                 if not haveTools then
-                    growtopia.notify("Tools kurang dari 15!")
+                    console("Tools < 15")
                     return true
                 end
             end
-            
+
             local tx = v2:match("embed_data|tilex|(%d+)")
             local ty = v2:match("embed_data|tiley|(%d+)")
             if tx and ty then
@@ -110,6 +117,7 @@ addHook(function(var)
             return true
         end
 
+        -- Prioritas tools
         if v2:find("You can't see what you are doing!") then Use("Sponge") return true end
         if Decolorize(v2):find("Status: Heart stopped!") then Use("Defibrillator") return true end
         if v2:find("The patient wakes up!") or v2:find("The patient screams and flails!") then Use("Anesthetic") return true end
@@ -147,60 +155,5 @@ addHook(function(var)
     return false
 end, "onVariant")
 
--- ===== SIMPLE GUI =====
-local ui = UserInterface.new("Auto Surgery", "Medical")
-ui:addLabelApp("Auto Surgery by Conqueror", "Medical")
-ui:addDivider()
-ui:addToggle("Auto Legal Brief", Aleg, "aleg_toggle", true)
-ui:addDivider()
-ui:addToggle("Mode Surg-E", modeSurg, "mode_surg", true)
-ui:addToggle("Mode Train-E", modeTrain, "mode_train", true)
-ui:addDivider()
-ui:addToggleButton("START", startMode, "btn_start")
-ui:addDivider()
-ui:addLabelApp("Tools Used: "..totalTools, "Build")
-editValue("total_tools", "Tools Used: "..totalTools)
-
-addCategory("Auto Surgery", "Medical")
-addIntoModule(ui:generateJSON(), "Auto Surgery")
-
-runThread(function()
-    while true do
-        sleep(2000)
-        pcall(editValue, "total_tools", "Tools Used: "..totalTools)
-    end
-end)
-
-addHook(function(type, name, value)
-    if name == "aleg_toggle" then
-        Aleg = value
-    elseif name == "mode_surg" then
-        modeSurg = value
-        if value then
-            modeTrain = false
-            pcall(editValue, "mode_train", false)
-            growtopia.notify("Mode: Surg-E")
-        end
-    elseif name == "mode_train" then
-        modeTrain = value
-        if value then
-            modeSurg = false
-            pcall(editValue, "mode_surg", false)
-            growtopia.notify("Mode: Train-E")
-        end
-    elseif name == "btn_start" then
-        startMode = value
-        if value then
-            growtopia.notify("Auto Start: ON")
-        else
-            growtopia.notify("Auto Start: OFF")
-        end
-    end
-end, "onValue")
-
-runCoroutine(function()
-    sleep(1000)
-    growtopia.notify("Auto Surgery ready")
-end)
-
+console("Auto Surgery logic siap")
 applyHook()
