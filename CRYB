@@ -1,14 +1,13 @@
--- Auto Surgery Logic (Growlauncher) – Tanpa GUI (Fix Blokir)
+-- Auto Surgery Logic (Growlauncher) – Tanpa GUI (Fix Blokir + Auto Wrench Surg‑E + OnTextOverlay)
 -- Hanya logika dan fungsi, siap di‑inject oleh loader.
 -- Loader dapat mengatur _G.surgStart, _G.surgMode, _G.surgTrain, _G.surgLegal
-
-_G.blockDialog = true
 
 -- State (dapat diubah oleh loader)
 _G.surgLegal = _G.surgLegal or false
 _G.surgMode  = _G.surgMode or true
 _G.surgTrain = _G.surgTrain or false
 _G.surgStart = _G.surgStart or false
+_G.blockDialog = _G.surgStart   -- awalnya mengikuti START, false jika START mati
 
 local surgery = nil
 local totalTools = 0
@@ -50,12 +49,13 @@ local function Use(toolName)
     end
 end
 
-local function scanNextTrainE()
+local function scanNextStation(stationId, name)
     local px, py = math.floor(getLocal().posX / 32), math.floor(getLocal().posY / 32)
     for y = math.max(0, py - 5), math.min(53, py + 5) do
         for x = math.max(0, px - 5), math.min(99, px + 5) do
-            if getTile(x, y).fg == 8558 then
+            if getTile(x, y).fg == stationId then
                 place(x, y, 32)
+                console("Auto wrench next " .. name)
                 return true
             end
         end
@@ -69,6 +69,9 @@ addHook(function(var)
     local v2 = var.v2 or ""
     if type(v2) ~= "string" then v2 = "" end
 
+    -- Sinkronkan blockDialog dengan START setiap kali hook dipanggil
+    _G.blockDialog = _G.surgStart
+
     -- Block dialog
     if _G.blockDialog and v1 == "OnDialogRequest" then
         if v2:find("surgery") or v2:find("|4296|") or v2:find("|8558|") then
@@ -80,11 +83,18 @@ addHook(function(var)
         if _G.surgLegal then place(math.floor(getLocal().posX/32), math.floor(getLocal().posY/32), 3172) end
     end
 
-    -- Auto find next Train‑E setelah surgery selesai
-    if v1 == "OnConsoleMessage" then
-        if _G.surgTrain and (v2:find("YOU HEALED YOUR PATIENT") or v2:find("The patient is fully healed")) then
-            sleep(1000)
-            if scanNextTrainE() then console("Auto wrench next Train‑E") end
+    -- Auto find next station setelah surgery selesai (Console + Overlay)
+    if v1 == "OnConsoleMessage" or v1 == "OnTextOverlay" then
+        if v2:find("YOU SAVED YOUR PATIENT") then
+            if _G.surgMode then
+                sleep(1000)
+                scanNextStation(4296, "Surg‑E")
+            end
+        elseif v2:find("YOU HEALED YOUR PATIENT") or v2:find("The patient is fully healed") then
+            if _G.surgTrain then
+                sleep(1000)
+                scanNextStation(8558, "Train‑E")
+            end
         end
     end
 
@@ -158,5 +168,5 @@ addHook(function(var)
     return false
 end, "onVariant")
 
-console("Auto Surgery siap")
+console("Auto Surgery logic siap")
 applyHook()
