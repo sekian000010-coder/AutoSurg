@@ -154,14 +154,8 @@ ui:addButton("Stop Surgery", "surg_stop")
 ui:addDivider()
 ui:addLabelApp("Made for Conqueror Hub", "Info")
 
--- ===== SIMPAN UI & FUNGSI UNLOAD =====
+-- ===== SIMPAN UI (TANPA UNLOAD) =====
 _G.surgUI = ui:generateJSON()
-
-function _G.unloadSurgery()
-    _G.surgStart = false
-    _G.blockDialog = false
-    LogToConsole("[Surgery] Unloaded")
-end
 
 -- ===== HANDLER TOMBOL UI =====
 addHook(function(type, name, value)
